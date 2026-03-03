@@ -28,6 +28,7 @@ Context Assembly (top chunks per case)
    |
    v
 Confidence Label + Response
+```
 
 ## Notes
 
