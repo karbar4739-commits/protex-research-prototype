@@ -60,3 +60,8 @@ This repository does NOT contain:
 
 Active research prototype.  
 Architecture and evaluation methodology under continuous development.
+---
+
+## Documentation
+- Architecture: `docs/architecture.md`
+- Query flow: `docs/query_flow.md`
