@@ -1,7 +1,104 @@
-"""
-PROTEX Research Prototype
-Ingestion module (public research edition)
+from pinecone import Pinecone
+from openai import OpenAI
+from dotenv import load_dotenv
+import os
+import hashlib
+from typing import Dict, Any
 
-This file demonstrates structured case ingestion logic
-without real case data.
-"""
+# ======================================================
+# ENV
+# ======================================================
+
+load_dotenv()
+
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+INDEX_NAME = os.getenv("PINECONE_INDEX", "protex")
+
+if not PINECONE_API_KEY or not OPENAI_API_KEY:
+    raise RuntimeError("Missing API keys")
+
+pc = Pinecone(api_key=PINECONE_API_KEY)
+index = pc.Index(INDEX_NAME)
+openai = OpenAI(api_key=OPENAI_API_KEY)
+
+EMBED_MODEL = "text-embedding-3-large"
+
+NS_CASES = "cases"
+NS_PROFILES = "profiles"
+
+# ======================================================
+# CASE CONFIG (RESEARCH TEMPLATE)
+# ======================================================
+
+CASE_ID = "PROTEX-XXX"
+
+CASE_PROFILE = {
+    "childhood": {
+        "abuse_present": "unknown",
+        "neglect_present": "unknown",
+        "institutionalization": "unknown"
+    },
+    "modus_operandi": {
+        "primary_control": "unknown",
+        "weapon_used": "unknown",
+        "planning_level": "unknown"
+    },
+    "victims": {
+        "primary_gender": "unknown",
+        "age_group": "unknown"
+    },
+    "temporal": {
+        "offence_pattern": "unknown"
+    }
+}
+
+# ======================================================
+# HELPERS
+# ======================================================
+
+def embed(text: str):
+    return openai.embeddings.create(
+        model=EMBED_MODEL,
+        input=text
+    ).data[0].embedding
+
+
+def text_hash(text: str):
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+def flatten_profile(profile: Dict[str, Any], prefix: str = "p") -> Dict[str, Any]:
+    flat = {}
+    for k, v in profile.items():
+        if isinstance(v, dict):
+            nested = flatten_profile(v, prefix=f"{prefix}_{k}")
+            flat.update(nested)
+        else:
+            flat[f"{prefix}_{k}"] = v
+    return flat
+
+
+def upsert_profile(case_id: str, profile: Dict[str, Any]):
+    profile_id = f"{case_id}__profile"
+    flat = flatten_profile(profile)
+
+    profile_text = f"CASE_PROFILE for {case_id}: " + ", ".join(
+        [f"{k}={v}" for k, v in flat.items()]
+    )
+
+    index.upsert(
+        vectors=[{
+            "id": profile_id,
+            "values": embed(profile_text),
+            "metadata": {
+                "entity_type": "case_profile",
+                "case_id": case_id,
+                **flat
+            }
+        }],
+        namespace=NS_PROFILES
+    )
+
+    print(f"✔ PROFILE INGESTED: {profile_id}")
+    return profile_id
