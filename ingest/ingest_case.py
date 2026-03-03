@@ -52,6 +52,7 @@ CASE_PROFILE = {
         "offence_pattern": "unknown"
     }
 }
+
 # ======================================================
 # HELPERS
 # ======================================================
@@ -68,11 +69,6 @@ def text_hash(text: str):
 
 
 def flatten_profile(profile: Dict[str, Any], prefix: str = "p") -> Dict[str, Any]:
-    """
-    Flattens nested profile dictionary into Pinecone-filterable metadata keys.
-    Example:
-    p_childhood_abuse_present = "yes"
-    """
     flat = {}
     for k, v in profile.items():
         if isinstance(v, dict):
@@ -106,7 +102,9 @@ def upsert_profile(case_id: str, profile: Dict[str, Any]):
 
     print(f"✔ PROFILE INGESTED: {profile_id}")
     return profile_id
-    # ======================================================
+
+
+# ======================================================
 # CHUNK INGESTION
 # ======================================================
 
@@ -141,3 +139,28 @@ def upsert_chunk(
     )
 
     print(f"✔ CHUNK INGESTED: {chunk_id}")
+
+
+# ======================================================
+# EXECUTION ENTRY (TEMPLATE)
+# ======================================================
+
+if __name__ == "__main__":
+    profile_id = upsert_profile(CASE_ID, CASE_PROFILE)
+
+    example_text = """
+    Example case description.
+    Replace this with structured case data.
+    """
+
+    upsert_chunk(
+        case_id=CASE_ID,
+        profile_id=profile_id,
+        section="case_description",
+        section_group="narrative",
+        chunk_role="case_summary",
+        text=example_text.strip(),
+        order=1,
+    )
+
+    print(f"\n=== INGEST COMPLETE — {CASE_ID} ===")
