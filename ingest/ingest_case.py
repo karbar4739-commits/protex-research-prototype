@@ -106,3 +106,38 @@ def upsert_profile(case_id: str, profile: Dict[str, Any]):
 
     print(f"✔ PROFILE INGESTED: {profile_id}")
     return profile_id
+    # ======================================================
+# CHUNK INGESTION
+# ======================================================
+
+def upsert_chunk(
+    case_id: str,
+    profile_id: str,
+    section: str,
+    section_group: str,
+    chunk_role: str,
+    text: str,
+    order: int,
+):
+    chunk_id = f"{case_id}__{section}__{order:02d}"
+
+    index.upsert(
+        vectors=[{
+            "id": chunk_id,
+            "values": embed(text),
+            "metadata": {
+                "entity_type": "case_chunk",
+                "case_id": case_id,
+                "profile_ref": profile_id,
+                "section": section,
+                "section_group": section_group,
+                "chunk_role": chunk_role,
+                "order": order,
+                "hash": text_hash(text),
+                "text": text,
+            }
+        }],
+        namespace=NS_CASES
+    )
+
+    print(f"✔ CHUNK INGESTED: {chunk_id}")
