@@ -52,3 +52,57 @@ CASE_PROFILE = {
         "offence_pattern": "unknown"
     }
 }
+# ======================================================
+# HELPERS
+# ======================================================
+
+def embed(text: str):
+    return openai.embeddings.create(
+        model=EMBED_MODEL,
+        input=text
+    ).data[0].embedding
+
+
+def text_hash(text: str):
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+def flatten_profile(profile: Dict[str, Any], prefix: str = "p") -> Dict[str, Any]:
+    """
+    Flattens nested profile dictionary into Pinecone-filterable metadata keys.
+    Example:
+    p_childhood_abuse_present = "yes"
+    """
+    flat = {}
+    for k, v in profile.items():
+        if isinstance(v, dict):
+            nested = flatten_profile(v, prefix=f"{prefix}_{k}")
+            flat.update(nested)
+        else:
+            flat[f"{prefix}_{k}"] = v
+    return flat
+
+
+def upsert_profile(case_id: str, profile: Dict[str, Any]):
+    profile_id = f"{case_id}__profile"
+    flat = flatten_profile(profile)
+
+    profile_text = f"CASE_PROFILE for {case_id}: " + ", ".join(
+        [f"{k}={v}" for k, v in flat.items()]
+    )
+
+    index.upsert(
+        vectors=[{
+            "id": profile_id,
+            "values": embed(profile_text),
+            "metadata": {
+                "entity_type": "case_profile",
+                "case_id": case_id,
+                **flat
+            }
+        }],
+        namespace=NS_PROFILES
+    )
+
+    print(f"✔ PROFILE INGESTED: {profile_id}")
+    return profile_id
