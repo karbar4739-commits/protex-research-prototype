@@ -30,5 +30,6 @@ Context Assembly (top chunks per case)
 Confidence Label + Response
 
 ## Notes
-	•	The pipeline is designed to remain auditable: each output chunk retains provenance metadata.
-	•	The architecture prefers conservative outputs (“unknown”) over speculative synthesis
+
+- The pipeline is designed to remain auditable: each output chunk retains provenance metadata.
+- The architecture prefers conservative outputs ("unknown") over speculative synthesis.
